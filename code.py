@@ -1,95 +1,53 @@
-"""
-Customer & Order Management System
-Author: Demo User
-Purpose: Sample project for testing source code integration in a small company setting
-"""
 
-# -----------------------------
-# Global Variables
-# -----------------------------
-company_name = "Reliance AI Solutions"
-customers = []   # list of Customer objects
-orders = []      # list of Order objects
+import json
+
+import requests
+from bottle import route, template, run, static_file, request, response
 
 
-# -----------------------------
-# Classes
-# -----------------------------
-class Customer:
-    def __init__(self, customer_id: int, name: str, email: str, phone: str):
-        self.customer_id = customer_id
-        self.name = name
-        self.email = email
-        self.phone = phone
+@route('/create_ticket', method=['GET', 'POST'])
+def handle_form():
+    if 'verified_email' in request.cookies:
+        ask_email = False
+    else:
+        ask_email = True
+    status = ''
 
-    def __str__(self):
-        return f"Customer {self.customer_id}: {self.name}, {self.email}, {self.phone}"
+    if request.POST:
+        # Get the form data
+        subject = request.forms.get('subject')
+        description = request.forms.get('description')
+        if 'verified_email' in request.cookies:
+            email = request.get_cookie('verified_email')
+        else:
+            email = request.forms.get('email')
 
+        # Package the data for the API
+        data = {'request': {'subject': subject, 'comment': {'body': description}}}
+        ticket = json.dumps(data)
 
-class Order:
-    def __init__(self, order_id: int, customer: Customer, items: list, total_amount: float):
-        self.order_id = order_id
-        self.customer = customer
-        self.items = items  # list of strings (product names)
-        self.total_amount = total_amount
+        # Make the API request
+        user = email + '/token'
+        api_token = 'your_api_token'
+        url = 'https://your_subdomain.zendesk.com/api/v2/requests.json'
+        headers = {'content-type': 'application/json'}
+        r = requests.post(url, data=ticket, auth=(user, api_token), headers=headers)
+        if r.status_code != 201:
+            if r.status_code == 401 or 422:
+                status = 'Could not authenticate you. Check your email address or register.'
+                ask_email = True
+            else:
+                status = 'Problem with the request. Status ' + str(r.status_code)
+        else:
+            status = 'Ticket was created. Look for an email notification.'
+            if 'verified_email' not in request.cookies:
+                response.set_cookie('verified_email', email, max_age=364*24*3600)
+                ask_email = False
 
-    def __str__(self):
-        return (f"Order {self.order_id} for {self.customer.name} | "
-                f"Items: {', '.join(self.items)} | Total: ₹{self.total_amount:.2f}")
+    return template('ticket_form', feedback=status, no_email=ask_email)
 
+@route('/css/<filename>')
+def send_css(filename):
+    return static_file(filename, root='static/css')
 
-# -----------------------------
-# Functions
-# -----------------------------
-def add_customer(customer_id: int, name: str, email: str, phone: str):
-    customer = Customer(customer_id, name, email, phone)
-    customers.append(customer)
-    print(f"✅ Customer {name} added successfully!")
-
-
-def create_order(order_id: int, customer_id: int, items: list, total_amount: float):
-    # Find customer
-    customer = None
-    for c in customers:
-        if c.customer_id == customer_id:
-            customer = c
-            break
-
-    if not customer:
-        print(f"⚠️ Customer with ID {customer_id} not found!")
-        return
-
-    order = Order(order_id, customer, items, total_amount)
-    orders.append(order)
-    print(f"🛒 Order {order_id} created for {customer.name}.")
-
-
-def display_all_customers():
-    print(f"\n--- {company_name} Customers ---")
-    for c in customers:
-        print(c)
-    print("---------------------------------")
-
-
-def display_all_orders():
-    print(f"\n--- {company_name} Orders ---")
-    for o in orders:
-        print(o)
-    print("---------------------------------")
-
-
-# -----------------------------
-# Main Execution
-# -----------------------------
-if __name__ == "__main__":
-    # Add some customers
-    add_customer(1, "Alice Johnson", "alice@example.com", "9876543210")
-    add_customer(2, "Bob Smith", "bob@example.com", "8765432109")
-
-    # Create orders
-    create_order(101, 1, ["Laptop", "Mouse"], 55000.75)
-    create_order(102, 2, ["Keyboard"], 1200.50)
-
-    # Display data
-    display_all_customers()
-    display_all_orders()
+run(host='localhost', port=8080, debug=True)
