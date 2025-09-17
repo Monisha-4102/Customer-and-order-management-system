@@ -14,7 +14,7 @@ repository: Customer-and-order-management-system
 services:
   - service: test
     source:
-      - /Users/monisha/Customer-and-order-management-system
+      - /
 
 # Example: Services and Code Relationship 
 # Note: Do not use below. It is an example.
