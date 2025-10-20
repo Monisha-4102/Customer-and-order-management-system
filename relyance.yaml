@@ -31,6 +31,9 @@ services:
 # Source Directories to Exclude
 # Purpose: Configuration is used to exclude directories from analysis such as test directories etc.
 # Note: Directory paths are relative to the repository's root directory
+exclude:
+  - '**/code.py'
+  - 'src/temp/**'
 
 
 # Excluding files and directories using patterns (enable lines as needed)
